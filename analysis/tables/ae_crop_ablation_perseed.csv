@@ -1,0 +1,16 @@
+route,route_name,seed,accuracy,balanced_accuracy,macro_f1,blast_f1,promy_f1,min_recall
+A,"original crop -> Swin (classifier reference, n=8061)",42,0.949014,0.893869,0.886002,0.813860,0.722892,0.714286
+A,"original crop -> Swin (classifier reference, n=8061)",62,0.948021,0.882010,0.878471,0.819392,0.666667,0.690476
+A,"original crop -> Swin (classifier reference, n=8061)",82,0.939710,0.885139,0.823794,0.744318,0.412121,0.687063
+B,"no-crop -> YOLO -> Swin (deployable pipeline, coverage-aware, n=8080)",42,0.945421,0.878338,0.882829,0.813749,0.746667,0.666667
+B,"no-crop -> YOLO -> Swin (deployable pipeline, coverage-aware, n=8080)",62,0.942698,0.872268,0.882431,0.832909,0.732394,0.619048
+B,"no-crop -> YOLO -> Swin (deployable pipeline, coverage-aware, n=8080)",82,0.945173,0.896796,0.870337,0.814332,0.653465,0.785714
+C,no-crop -> Cellpose keep-bg -> Swin (n=8080),42,0.932673,0.880009,0.873855,0.761226,0.784810,0.738095
+C,no-crop -> Cellpose keep-bg -> Swin (n=8080),62,0.932797,0.883086,0.878627,0.807425,0.779221,0.714286
+C,no-crop -> Cellpose keep-bg -> Swin (n=8080),82,0.935520,0.884868,0.849696,0.779104,0.627451,0.761905
+D,no-crop -> Cellpose no-bg -> Swin (n=8080),42,0.867450,0.846800,0.794007,0.568194,0.646465,0.674980
+D,no-crop -> Cellpose no-bg -> Swin (n=8080),62,0.869059,0.850668,0.803670,0.582027,0.659574,0.673344
+D,no-crop -> Cellpose no-bg -> Swin (n=8080),82,0.810891,0.820875,0.683152,0.486661,0.402367,0.529845
+E,Cellpose keep-bg ROI -> YOLO refine -> Swin (n=8080),42,0.952351,0.903666,0.895123,0.820225,0.761905,0.761905
+E,Cellpose keep-bg ROI -> YOLO refine -> Swin (n=8080),62,0.953218,0.889210,0.895614,0.839597,0.743590,0.690476
+E,Cellpose keep-bg ROI -> YOLO refine -> Swin (n=8080),82,0.947525,0.904197,0.854420,0.790821,0.534351,0.783217

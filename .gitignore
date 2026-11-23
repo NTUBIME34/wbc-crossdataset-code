@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+env/
+
+# Data, weights and run outputs: users provide or download their own
+data/
+datasets/
+models/
+outputs/
+runs/
+results/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.npy
+
+# Third-party loss module fetched by train/third_party/ (not redistributed)
+train/third_party/bpaco_losses.py
+
+# Knowledge-graph cache: regenerable, and stale the moment the code changes
+graphify-out/
+
+# Figures / large binaries (regenerate with figures/*.py)
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---------------------------------------------------------------------------
+# Tables and per-image files are ignored by default. WBCBench2026 images, labels
+# and per-image predictions must never be committed (competition rules; Data
+# availability). Only the public evidence named below is re-included: count-only
+# WBCBench aggregates, internal confusion matrices, leave-one-dataset-out files of
+# the public training sources, two hash lists, the cited summary tables and the
+# manifest. Anything regenerated under analysis/ stays ignored unless listed here.
+# ---------------------------------------------------------------------------
+*.csv
+*.csv.gz
+
+# Public-source figure identities and hashes only; no WBCBench per-image data.
+!figures/fig2_source_mapping.csv
+
+!analysis/evidence/MANIFEST.csv
+!analysis/evidence/backbone_common_manifold_internal/*.csv.gz
+!analysis/evidence/internal_ensemble/swin_proposed_confusion7.csv.gz
+!analysis/evidence/internal_ensemble/swin_proposed_threshold_sweep.csv.gz
+!analysis/evidence/lodo/heldout_*_seed*.csv.gz
+!analysis/evidence/lodo_proposed/heldout_*_seed*.csv.gz
+!analysis/evidence/lodo_foundation/grid_foundation_lodo.csv.gz
+!analysis/evidence/leakage_audit/detector_train_image_hashes.csv.gz
+!analysis/evidence/leakage_audit/external_field_image_hashes.csv.gz
+!analysis/evidence/frozen_probe/grid.csv.gz
+!analysis/evidence/wbcbench_confusion/run_confusion.csv.gz
+!analysis/evidence/wbcbench_confusion/ensemble_confusion.csv.gz
+!analysis/evidence/wbcbench_confusion/mcnemar_discordant.csv.gz
+!analysis/evidence/wbcbench_confusion/calibration_bins.csv.gz
+!analysis/evidence/wbcbench_confusion/threshold_sweep.csv.gz
+!analysis/evidence/wbcbench_confusion/field_counts.csv.gz
+!analysis/evidence/wbcbench_confusion/ensemble_agreement.csv.gz
+!analysis/evidence/wbcbench_confusion/reeval_changes.csv.gz
+
+!analysis/tables/ae_crop_ablation_3seed_summary.csv
+!analysis/tables/ae_crop_ablation_perseed.csv
+!analysis/tables/backbone_comparison_pm_sd.csv
+!analysis/tables/detector_abstention_quality_test.csv
+!analysis/tables/external_macrof1_bootstrap_ci.csv
+!analysis/tables/lodo_corrected_perseed.csv
+!analysis/tables/master_external_results.csv
+!analysis/tables/matched_recipe_control_perseed.csv
+!analysis/tables/nocrop_baseline_perseed.csv
+!analysis/tables/nocrop_vs_crop_summary.csv
+!analysis/tables/phase1_vs_phase2_degradation.csv
+!analysis/tables/threshold_validation_locked.csv

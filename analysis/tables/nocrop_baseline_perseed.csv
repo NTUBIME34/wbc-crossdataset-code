@@ -1,0 +1,4 @@
+route,seed,accuracy,balanced_accuracy,macro_f1,blast_f1,promy_f1
+NOCROP,42,0.7918,0.6301,0.6295,0.4318,0.1739
+NOCROP,62,0.7405,0.6084,0.5786,0.3822,0.1739
+NOCROP,82,0.8741,0.6849,0.6738,0.5843,0.1786

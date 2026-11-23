@@ -1,0 +1,4 @@
+split,condition,macro_f1_mean,macro_f1_sd,bal_acc_mean,acc_mean,n_seeds
+phase1,"clean field->YOLO->Swin, coverage-aware (n=8080; coverage 99.99%)",0.8785,0.0058,0.8825,0.9444,3
+phase2_coverage_aware,partly degraded; 348/5196 no-detections counted as errors; headline (coverage 93.3%),0.7693,0.0020,0.7950,0.8499,3
+phase2_detected_only,partly degraded; detected cells only (n=4848); optimistic,0.7878,0.0022,0.8327,0.9110,3

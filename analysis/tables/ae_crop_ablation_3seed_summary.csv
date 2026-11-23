@@ -1,0 +1,6 @@
+route,route_name,accuracy_mean,accuracy_sd,bal_acc_mean,bal_acc_sd,macro_f1_mean,macro_f1_sd,blast_f1_mean,blast_f1_sd,promy_f1_mean,promy_f1_sd
+A,"original crop -> Swin (classifier reference, n=8061)",0.9456,0.0042,0.8870,0.0050,0.8628,0.0277,0.7925,0.0342,0.6006,0.1352
+B,"no-crop -> YOLO -> Swin (deployable pipeline, coverage-aware, n=8080)",0.9444,0.0012,0.8825,0.0104,0.8785,0.0058,0.8203,0.0089,0.7108,0.0410
+C,no-crop -> Cellpose keep-bg -> Swin (n=8080),0.9337,0.0013,0.8827,0.0020,0.8674,0.0127,0.7826,0.0190,0.7305,0.0729
+D,no-crop -> Cellpose no-bg -> Swin (n=8080),0.8491,0.0270,0.8394,0.0132,0.7603,0.0547,0.5456,0.0421,0.5695,0.1183
+E,Cellpose keep-bg ROI -> YOLO refine -> Swin (n=8080),0.9510,0.0025,0.8990,0.0069,0.8817,0.0193,0.8169,0.0201,0.6799,0.1032

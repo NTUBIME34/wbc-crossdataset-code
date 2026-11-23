@@ -1,0 +1,10 @@
+backbone,recipe,seed,internal_macro_f1,external_macro_f1,external_n,tta
+Swin-B,BPaCo (AdamW),42,0.9487,0.8361,8061,hflip
+Swin-B,BPaCo (AdamW),62,0.9492,0.8271,8061,hflip
+Swin-B,BPaCo (AdamW),82,0.9513,0.7952,8061,hflip
+ResNet50,"BPaCo (AdamW, shared protocol)",42,0.9311,0.7410,8061,hflip
+ResNet50,"BPaCo (AdamW, shared protocol)",62,0.9343,0.7606,8061,hflip
+ResNet50,"BPaCo (AdamW, shared protocol)",82,0.9332,0.7834,8061,hflip
+ResNet50,BPaCo (SGD),42,0.9337,0.8199,8061,hflip
+ResNet50,BPaCo (SGD),62,0.9330,0.8104,8061,hflip
+ResNet50,BPaCo (SGD),82,0.9327,0.8141,8061,hflip

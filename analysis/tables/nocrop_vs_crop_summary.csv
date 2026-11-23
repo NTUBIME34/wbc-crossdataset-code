@@ -1,0 +1,4 @@
+route,description,macro_f1_mean,macro_f1_sd,bal_acc_mean,blast_f1_mean,promy_f1_mean
+NOCROP,"full 368 field -> Swin (no localization, n=8080)",0.6273,0.0389,0.6411,0.4661,0.1755
+B,"no-crop field -> YOLO -> Swin (deployable, coverage-aware, n=8080)",0.8785,0.0058,0.8825,0.8203,0.7108
+A,"pre-cropped by the same detector (classifier reference, n=8061)",0.8628,0.0277,0.8870,0.7925,0.6006

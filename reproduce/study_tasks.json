@@ -1,0 +1,554 @@
+{
+  "schema_version": 1,
+  "scope": "Explicit coverage and executable entry points for the main paper and supplement. Availability and execution are separate from numerical agreement.",
+  "defaults": {
+    "DATA_ROOT": "{REPO}/data",
+    "MODEL_DIR": "{REPO}/models",
+    "MODEL_ROOT": "{OUT_ROOT}",
+    "CORPUS_ROOT": "{DATA_ROOT}/Mixed_data_mix_mono_9_split_copy",
+    "INTERNAL_TEST_ROOT": "{CORPUS_ROOT}/test",
+    "WBCB_P1_FIELDS": "{DATA_ROOT}/wbc-bench-2026_phase1_nocrop_formatted",
+    "WBCB_P2_FIELDS": "{DATA_ROOT}/wbc-bench-2026_phase2_eval_nocrop_formatted",
+    "REPLAY_P1_RAW_ROOT": "{WBCB_P1_FIELDS}",
+    "REPLAY_P2_RAW_ROOT": "{WBCB_P2_FIELDS}",
+    "WBCB_P1_CROPS": "{DATA_ROOT}/wbc-bench-2026_phase1_cropped_formatted",
+    "ROUTE_C_DIR": "{DATA_ROOT}/wbc-bench-2026_phase1_nocrop_formatted_cellpose_keepbg_224",
+    "ROUTE_D_DIR": "{DATA_ROOT}/wbc-bench-2026_phase1_nocrop_formatted_cellpose_224",
+    "CNN_ROOT": "{MODEL_ROOT}/cnn_cwce",
+    "DINO_ROOT": "{MODEL_ROOT}/dinobloom_b_color_aug_cwce",
+    "TXLPBC_DATA_YAML": "{DATA_ROOT}/TXL-PBC/data.yaml",
+    "PRED_PROPOSED": "{OUT_ROOT}/augmentation_recipes/colour_aug_proposed",
+    "PRED_INTERNAL": "{OUT_ROOT}/internal_mapped/colour_aug_proposed",
+    "LODO_TEST_ROOT_LMU": "{DATA_ROOT}/LMU_LODO_corrected_test",
+    "LODO_TEST_ROOT_DIB": "{DATA_ROOT}/dataset_DIB_single_wbc_copy",
+    "LODO_TEST_ROOT_Raabin": "{DATA_ROOT}/Raabin_WBC_single_wbc_copy",
+    "LODO_TEST_ROOT_HRLS": "{DATA_ROOT}/HRLS_dataset_single_wbc_copy",
+    "LODO_TEST_ROOT_BM": "{DATA_ROOT}/BM_cytomorphology_data_single_wbc_07_for_train_9class",
+    "LODO_ROOT_LMU": "{DATA_ROOT}/LODO_ALL_minus_LMU_test_LMU_split",
+    "LODO_ROOT_DIB": "{DATA_ROOT}/LODO_corrected_ALL_minus_DIB_test_DIB_split",
+    "LODO_ROOT_Raabin": "{DATA_ROOT}/LODO_corrected_ALL_minus_Raabin_test_Raabin_split",
+    "LODO_ROOT_HRLS": "{DATA_ROOT}/LODO_corrected_ALL_minus_HRLS_test_HRLS_split",
+    "LODO_ROOT_BM": "{DATA_ROOT}/LODO_corrected_ALL_minus_BM_test_BM_split",
+    "DEVICE": "cuda"
+  },
+  "tasks": [
+    {
+      "id": "compare-proposed-{seed}",
+      "foreach": {"seed": [42, 62, 82]},
+      "kind": "statistics",
+      "paper_items": ["Table 3 proposed per-seed external numerical comparison"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "reproduce/compare_results.py", "--run", "backbone_comparison/swin_proposed_seed{seed}", "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "--out", "{OUT_ROOT}/numerical_comparison/proposed_seed{seed}.json"],
+      "inputs": [{"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv"}, {"path": "{REPO}/analysis/evidence/wbcbench_confusion/run_confusion.csv.gz"}],
+      "outputs": [{"path": "{OUT_ROOT}/numerical_comparison/proposed_seed{seed}.json"}],
+      "limitations": ["Exact confusion counts are compared independently. A nonzero result can be a documented crop/runtime numerical difference, not necessarily an execution failure; inspect the comparison JSON. This does not test probability identity or bootstrap targets."]
+    },
+    {
+      "id": "compare-cnn-{model}-{seed}",
+      "foreach": {"model": {"resnet50": {"reference_model": "resnet50"}, "vgg16_bn": {"reference_model": "vgg16bn"}, "tf_efficientnet_b0": {"reference_model": "efficientnet_b0"}}, "seed": [42, 43, 44]},
+      "kind": "statistics",
+      "paper_items": ["Table 3 CNN per-seed external numerical comparison"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "reproduce/compare_results.py", "--run", "backbone_common_manifold/{reference_model}_seed{seed}_copy", "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "--out", "{OUT_ROOT}/numerical_comparison/{model}_seed{seed}.json"],
+      "inputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv"}, {"path": "{REPO}/analysis/evidence/wbcbench_confusion/run_confusion.csv.gz"}],
+      "outputs": [{"path": "{OUT_ROOT}/numerical_comparison/{model}_seed{seed}.json"}],
+      "limitations": ["Reference is the retained common-manifold CNN run, not a different earlier CNN training set. Exact confusion agreement does not imply every probability or scientific result is identical."]
+    },
+    {
+      "id": "replay-historical-{split}",
+      "foreach": {"split": {"phase1": {"fields": "{WBCB_P1_FIELDS}", "raw_root": "{REPLAY_P1_RAW_ROOT}"}, "phase2": {"fields": "{WBCB_P2_FIELDS}", "raw_root": "{REPLAY_P2_RAW_ROOT}"}}},
+      "kind": "preparation",
+      "paper_items": ["Table 2b route B historical inputs", "Table 2a historical inputs"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "data_prep/replay_manifest.py", "replay-crops", "--manifest", "{PRIVATE_INPUTS}/{split}_full_pipeline.json", "--input-root", "{fields}", "--allow-input-root", "{raw_root}", "--output-dir", "{OUT_ROOT}/historical_{split}"],
+      "inputs": [{"path": "{PRIVATE_INPUTS}/{split}_full_pipeline.json"}, {"path": "{fields}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/historical_{split}/detections.csv"}, {"path": "{OUT_ROOT}/historical_{split}/REPLAY_REPORT.json"}],
+      "limitations": ["Private manifests contain benchmark identifiers. Historical-box replay fixes the inputs but is not a new detector run; keep its score separate from fresh end-to-end detection."]
+    },
+    {
+      "id": "replay-internal-split",
+      "kind": "preparation",
+      "paper_items": ["Table 3 internal held-out membership", "S4", "Fig. 3 internal", "S11 internal"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "data_prep/replay_manifest.py", "replay-tree", "--manifest", "{PRIVATE_INPUTS}/internal_split.json", "--input-root", "{CORPUS_SOURCE_ROOT}", "--output-dir", "{OUT_ROOT}/replayed_internal"],
+      "inputs": [{"path": "{PRIVATE_INPUTS}/internal_split.json"}, {"path": "{CORPUS_SOURCE_ROOT}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/replayed_internal/REPLAY_REPORT.json"}],
+      "limitations": ["After exact replay, explicitly point CORPUS_ROOT/INTERNAL_TEST_ROOT to the replayed tree for later tasks. This reconstructs retained membership from matching prepared crop content; raw-to-crop reconstruction is a separate test."]
+    },
+    {
+      "id": "public-evidence",
+      "kind": "evidence",
+      "paper_items": ["public numerical evidence across main text and supplement"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "analysis/verify_tables.py"],
+      "inputs": [{"path": "{REPO}/analysis/evidence/MANIFEST.csv"}],
+      "limitations": ["A successful default verifier can still contain SKIPPED checks. It checks retained evidence, not regenerated predictions or training."]
+    },
+    {
+      "id": "private-evidence",
+      "kind": "evidence",
+      "paper_items": ["private image-level verifier checks"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "analysis/verify_tables.py", "--private-evidence", "{PRIVATE_EVIDENCE}"],
+      "inputs": [{"path": "{PRIVATE_EVIDENCE}", "kind": "directory"}],
+      "limitations": ["Requires the layout in analysis/README.md. Missing inputs may still be reported as SKIPPED by that verifier; inspect its log."]
+    },
+    {
+      "id": "offline-regressions",
+      "kind": "evidence",
+      "paper_items": ["scorer and runner regression behavior"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
+      "inputs": [{"path": "{REPO}/tests", "kind": "directory"}]
+    },
+    {
+      "id": "proposed-external",
+      "kind": "inference",
+      "paper_items": ["Table 3 proposed external", "S8 proposed", "S9 proposed", "S10 proposed", "3.3", "3.6", "3.8"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_augmentation_recipe_eval.sh"],
+      "environment_overrides": {"RECIPES": "colour_aug_proposed", "SEEDS": "42 62 82", "TTA": "hflip", "FORCE": "1"},
+      "inputs": [
+        {"path": "{WBCB_P1_CROPS}", "kind": "directory"},
+        {"any_of": ["{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "{MODEL_ROOT}/swin_base_color_aug_cwce/seed_{seed}/best_macro_f1.pth"], "foreach": {"seed": [42, 62, 82]}}
+      ],
+      "outputs": [{"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "limitations": ["Exact historical scores require the historical pre-cropped inputs; re-detection can alter crops."]
+    },
+    {
+      "id": "bpaco-external",
+      "kind": "inference",
+      "paper_items": ["Table 3 BPaCo external", "S7 BPaCo", "3.4"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_backbone_external_eval.sh"],
+      "environment_overrides": {"RUN_GROUPS": "bpaco", "FORCE": "1"},
+      "inputs": [
+        {"path": "{WBCB_P1_CROPS}", "kind": "directory"},
+        {"any_of": ["{MODEL_DIR}/{model}_seed{seed}.pth", "{MODEL_ROOT}/{model}/seed_{seed}/best_macro_f1.pth"], "foreach": {"model": ["swin_base_bpaco", "resnet50_bpaco_adamw", "resnet50_bpaco_sgd"], "seed": [42, 62, 82]}}
+      ],
+      "outputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"model": ["swin_base_bpaco", "resnet50_bpaco_adamw", "resnet50_bpaco_sgd"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "cnn-external",
+      "kind": "inference",
+      "paper_items": ["Table 3 CNN external", "S9 CNN", "S10 CNN", "3.3"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_backbone_external_eval.sh"],
+      "environment_overrides": {"RUN_GROUPS": "cnn", "FORCE": "1"},
+      "inputs": [
+        {"path": "{WBCB_P1_CROPS}", "kind": "directory"},
+        {"path": "{CNN_ROOT}/{model}/seed_{seed}/best_macro_f1.pth", "foreach": {"model": ["resnet50", "vgg16_bn", "tf_efficientnet_b0"], "seed": [42, 43, 44]}}
+      ],
+      "outputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"model": ["resnet50", "vgg16_bn", "tf_efficientnet_b0"], "seed": [42, 43, 44]}}],
+      "limitations": ["These nine checkpoints are not among the original 13 released weights. Supply retained checkpoints or retrain."]
+    },
+    {
+      "id": "resnet-configurations",
+      "kind": "inference",
+      "paper_items": ["S7 ResNet configurations", "3.4"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_backbone_external_eval.sh"],
+      "environment_overrides": {"RUN_GROUPS": "resnet50_configs", "FORCE": "1"},
+      "inputs": [
+        {"path": "{WBCB_P1_CROPS}", "kind": "directory"},
+        {"path": "{MODEL_ROOT}/{model}/seed_{seed}/best_macro_f1.pth", "foreach": {"model": ["resnet50_color_aug_cwce_adamw", "resnet50_color_aug_cwce_sgd", "resnet50_cwce_default_aug"], "seed": [42, 62, 82]}}
+      ],
+      "outputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"model": ["resnet50_color_aug_cwce_adamw", "resnet50_color_aug_cwce_sgd", "resnet50_cwce_default_aug"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "recipe-comparators",
+      "kind": "inference",
+      "paper_items": ["S7 Swin CW-CE", "S8 comparator recipes", "3.4", "3.6"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_augmentation_recipe_eval.sh"],
+      "environment_overrides": {"RECIPES": "class_weighted_ce mixup_bpaco_crt", "SEEDS": "42 62 82", "TTA": "hflip", "FORCE": "1"},
+      "inputs": [
+        {"path": "{WBCB_P1_CROPS}", "kind": "directory"},
+        {"path": "{MODEL_ROOT}/swin_base_cwce_default_aug/seed_{seed}/best_macro_f1.pth", "foreach": {"seed": [42, 62, 82]}},
+        {"path": "{MODEL_ROOT}/swin_base_mixup_bpaco_crt/seed_{seed}/crt_best_macro_f1.pth", "foreach": {"seed": [42, 62, 82]}}
+      ],
+      "outputs": [{"path": "{OUT_ROOT}/augmentation_recipes/{recipe}/seed_{seed}/predictions.csv", "foreach": {"recipe": ["class_weighted_ce", "mixup_bpaco_crt"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "dinobloom-external",
+      "kind": "inference",
+      "paper_items": ["Table 3 fine-tuned DinoBloom", "S7", "3.4"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_dinobloom_external_eval.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_CROPS}", "kind": "directory"}, {"path": "{DINO_ROOT}/seed_{seed}/best_macro_f1.pth", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/dinobloom_external/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "limitations": ["Pinned DinoBloom Hugging Face configuration must be cached or network accessible."]
+    },
+    {
+      "id": "frozen-probe-refit",
+      "kind": "fit",
+      "paper_items": ["Table 3 frozen probe", "S7 frozen probe"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "eval/frozen_probe.py", "--data-root", "{CORPUS_ROOT}", "--external-root", "{WBCB_P1_CROPS}", "--out", "{OUT_ROOT}/frozen_probe", "--device", "{DEVICE}"],
+      "inputs": [{"path": "{CORPUS_ROOT}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}, {"path": "{WBCB_P1_CROPS}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/frozen_probe/grid.csv"}, {"path": "{OUT_ROOT}/frozen_probe/probe.joblib"}],
+      "limitations": ["This fits a new probe, not the retained original model. Exact internal comparison needs the original corpus membership; float/thread differences may alter high-C fits."]
+    },
+    {
+      "id": "full-pipeline",
+      "kind": "inference",
+      "paper_items": ["Table 2b route B", "Table 2a", "S1 field counts", "S12", "3.1", "3.2"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_full_pipeline_eval.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82", "SPLITS": "phase1 phase2", "RUN_ABSTENTION": "1", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_FIELDS}", "kind": "directory"}, {"path": "{WBCB_P2_FIELDS}", "kind": "directory"}, {"path": "{MODEL_DIR}/yolo11_wbc_detection_best.pt"}, {"path": "{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/full_pipeline/{split}/seed_{seed}/predictions.csv", "foreach": {"split": ["phase1", "phase2"], "seed": [42, 62, 82]}}, {"path": "{OUT_ROOT}/stats/coverage_aware_full_pipeline_{split}.json", "foreach": {"split": ["phase1", "phase2"]}}, {"path": "{OUT_ROOT}/full_pipeline/phase2/detector_abstention_quality_test.csv"}],
+      "limitations": ["New detector crops can differ from historical crops; compare rather than overwrite historical references."]
+    },
+    {
+      "id": "localization-routes",
+      "kind": "inference",
+      "paper_items": ["Table 2b", "S6", "3.1", "S17 unified rescoring"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_routes_ablation.sh"],
+      "environment_overrides": {"ROUTES": "noloc A B C D E", "SEEDS": "42 62 82", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_FIELDS}", "kind": "directory"}, {"path": "{WBCB_P1_CROPS}", "kind": "directory"}, {"path": "{ROUTE_C_DIR}", "kind": "directory"}, {"path": "{ROUTE_D_DIR}", "kind": "directory"}, {"path": "{MODEL_DIR}/yolo11_wbc_detection_best.pt"}, {"path": "{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/routes/{route}/seed_{seed}/predictions.csv", "foreach": {"route": ["noloc", "A", "B", "C", "D", "E"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "cellpose-keepbg",
+      "kind": "preparation",
+      "paper_items": ["S6 Cellpose input preparation"],
+      "environment": "cellpose_env",
+      "argv": ["{PYTHON}", "-B", "data_prep/cellpose_crop.py", "--input-dir", "{WBCB_P1_FIELDS}", "--output-dir", "{OUT_ROOT}/cellpose_keepbg", "--layout", "class", "--keep-background", "--crop-size", "224", "--save-manifest", "--overwrite"],
+      "inputs": [{"path": "{WBCB_P1_FIELDS}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/cellpose_keepbg/manifest.csv"}],
+      "limitations": ["Requires the cpsam model cache/download. Point ROUTE_C_DIR to the newly generated folder before localization-routes. Runtime/precision can alter masks; do not replace historical crop references."]
+    },
+    {
+      "id": "cellpose-removedbg",
+      "kind": "preparation",
+      "paper_items": ["S6 Cellpose input preparation"],
+      "environment": "cellpose_env",
+      "argv": ["{PYTHON}", "-B", "data_prep/cellpose_crop.py", "--input-dir", "{WBCB_P1_FIELDS}", "--output-dir", "{OUT_ROOT}/cellpose_removedbg", "--layout", "class", "--crop-size", "224", "--save-manifest", "--overwrite"],
+      "inputs": [{"path": "{WBCB_P1_FIELDS}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/cellpose_removedbg/manifest.csv"}],
+      "limitations": ["Requires the cpsam model cache/download. Point ROUTE_D_DIR to the newly generated folder before localization-routes. Runtime/precision can alter masks; do not replace historical crop references."]
+    },
+    {
+      "id": "resolution-sweep",
+      "kind": "inference",
+      "paper_items": ["3.7", "S17 inference resolution"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_resolution_scaling_eval.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82", "SIZES": "224 256 384", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_CROPS}", "kind": "directory"}, {"path": "{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/resolution/img{size}/seed_{seed}/predictions.csv", "foreach": {"size": [224, 256, 384], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "proposed-internal-mapped",
+      "kind": "inference",
+      "paper_items": ["Fig. 3 internal", "S11 internal", "3.8 internal"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_internal_mapped_eval.sh"],
+      "environment_overrides": {"RECIPES": "colour_aug_proposed", "SEEDS": "42 62 82", "FORCE": "1"},
+      "inputs": [{"path": "{INTERNAL_TEST_ROOT}", "kind": "directory"}, {"any_of": ["{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "{MODEL_ROOT}/swin_base_color_aug_cwce/seed_{seed}/best_macro_f1.pth"], "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{PRED_INTERNAL}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "limitations": ["Must use the original held-out test membership with retained weights. A newly randomized split is not held-out for them; use a verified split manifest or retrain."]
+    },
+    {
+      "id": "policy-sweep",
+      "kind": "inference",
+      "paper_items": ["S17 augmentation selection"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_augmentation_recipe_eval.sh"],
+      "environment_overrides": {"RECIPES": "aug_stain_only aug_geometry_only aug_conservative aug_blur_noise aug_stain_blur_noise", "TTA": "hflip", "BATCH_SIZE": "32", "SEEDS": "42 62 82", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_CROPS}", "kind": "directory"}, {"path": "{MODEL_ROOT}/swin_base_aug_{policy}/seed_{seed}/best_macro_f1.pth", "foreach": {"policy": ["stain_only", "geometry_only", "conservative", "blur_noise", "stain_blur_noise"], "seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/augmentation_recipes/aug_{policy}/seed_{seed}/predictions.csv", "foreach": {"policy": ["stain_only", "geometry_only", "conservative", "blur_noise", "stain_blur_noise"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "no-flip-comparison",
+      "kind": "inference",
+      "paper_items": ["S17 horizontal-flip TTA"],
+      "environment": "journal_env",
+      "argv": ["bash", "eval/run_augmentation_recipe_eval.sh"],
+      "environment_overrides": {"RECIPES": "colour_aug_proposed", "TTA": "none", "SEEDS": "42 62 82", "FORCE": "1"},
+      "inputs": [{"path": "{WBCB_P1_CROPS}", "kind": "directory"}, {"path": "{MODEL_DIR}/swin_base_colour_aug_cwce_seed{seed}.pth", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/augmentation_recipes/colour_aug_proposed_no_tta/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "calibration",
+      "kind": "statistics",
+      "paper_items": ["3.6 calibration", "Fig. S2 metrics"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/calibration.py", "--predictions", "{PRED_PROPOSED}/seed_42/predictions.csv", "{PRED_PROPOSED}/seed_62/predictions.csv", "{PRED_PROPOSED}/seed_82/predictions.csv", "--out-dir", "{OUT_ROOT}/stats"],
+      "inputs": [{"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/calibration_ensemble.json"}]
+    },
+    {
+      "id": "proposed-bootstrap",
+      "kind": "statistics",
+      "paper_items": ["S9 proposed", "3.3 ensemble CI"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/bootstrap_ensemble_ci.py", "--model", "proposed", "{PRED_PROPOSED}/seed_42/predictions.csv", "{PRED_PROPOSED}/seed_62/predictions.csv", "{PRED_PROPOSED}/seed_82/predictions.csv", "--out-dir", "{OUT_ROOT}/stats/bootstrap"],
+      "inputs": [{"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/bootstrap/external_macrof1_bootstrap_ci.csv"}]
+    },
+    {
+      "id": "recipe-statistics",
+      "kind": "statistics",
+      "paper_items": ["S8", "3.6 paired recipe bootstrap"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/recipe_ensembles.py", "--group", "colour_aug", "{PRED_PROPOSED}/seed_42/predictions.csv", "{PRED_PROPOSED}/seed_62/predictions.csv", "{PRED_PROPOSED}/seed_82/predictions.csv", "--group", "class_weighted_ce", "{OUT_ROOT}/augmentation_recipes/class_weighted_ce/seed_42/predictions.csv", "{OUT_ROOT}/augmentation_recipes/class_weighted_ce/seed_62/predictions.csv", "{OUT_ROOT}/augmentation_recipes/class_weighted_ce/seed_82/predictions.csv", "--group", "mixup_bpaco_crt", "{OUT_ROOT}/augmentation_recipes/mixup_bpaco_crt/seed_42/predictions.csv", "{OUT_ROOT}/augmentation_recipes/mixup_bpaco_crt/seed_62/predictions.csv", "{OUT_ROOT}/augmentation_recipes/mixup_bpaco_crt/seed_82/predictions.csv", "--out-dir", "{OUT_ROOT}/stats/recipe_ensembles"],
+      "inputs": [{"path": "{OUT_ROOT}/augmentation_recipes/{recipe}/seed_{seed}/predictions.csv", "foreach": {"recipe": ["colour_aug_proposed", "class_weighted_ce", "mixup_bpaco_crt"], "seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/recipe_ensembles/*.csv", "kind": "glob", "minimum": 1}],
+      "limitations": ["Bootstrap intervals depend on image order; original unsorted benchmark ID order is not publicly distributed."]
+    },
+    {
+      "id": "thresholds",
+      "kind": "statistics",
+      "paper_items": ["S11", "3.6 thresholds"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/threshold_analysis.py", "--internal", "{PRED_INTERNAL}/seed_42/predictions.csv", "{PRED_INTERNAL}/seed_62/predictions.csv", "{PRED_INTERNAL}/seed_82/predictions.csv", "--external", "{PRED_PROPOSED}/seed_42/predictions.csv", "{PRED_PROPOSED}/seed_62/predictions.csv", "{PRED_PROPOSED}/seed_82/predictions.csv", "--out-dir", "{OUT_ROOT}/stats/thresholds"],
+      "inputs": [{"path": "{PRED_INTERNAL}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}, {"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/thresholds/threshold_validation_locked.csv"}]
+    },
+    {
+      "id": "fig3",
+      "kind": "figure",
+      "paper_items": ["Fig. 3", "3.8 error breakdown"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "figures/make_confusion_matrix.py", "--internal-dir", "{PRED_INTERNAL}", "--external-dir", "{PRED_PROPOSED}", "--out-dir", "{OUT_ROOT}/figures"],
+      "inputs": [{"path": "{PRED_INTERNAL}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}, {"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/figures/fig_confusion.pdf"}]
+    },
+    {
+      "id": "figS2",
+      "kind": "figure",
+      "paper_items": ["Fig. S2"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "figures/make_calibration.py", "--pred-dir", "{PRED_PROPOSED}", "--out-dir", "{OUT_ROOT}/figures"],
+      "inputs": [{"path": "{PRED_PROPOSED}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/figures/fig_calibration.pdf"}]
+    },
+    {
+      "id": "lodo-{arm}",
+      "foreach": {"arm": {
+        "proposed": {"tag": "lodo_swin_base_color_aug_cwce", "stack": "cnn_env"},
+        "mixup": {"tag": "lodo_swin_base_mixup_cutmix_cwce", "stack": "cnn_env"},
+        "dinobloom_proposed": {"tag": "lodo_dinobloom_b_proposed", "stack": "journal_env"},
+        "dinobloom_bpaco": {"tag": "lodo_dinobloom_b_bpaco", "stack": "journal_env"}
+      }},
+      "kind": "inference",
+      "paper_items": ["Table 4", "Supplementary Note 1", "S14", "S16", "3.5"],
+      "environment": "{stack}",
+      "argv": ["bash", "eval/run_lodo_eval.sh"],
+      "environment_overrides": {"ARM": "{arm}", "LODO_ROOT": "{MODEL_ROOT}/{tag}", "FOLDS": "LMU DIB Raabin HRLS BM", "SEEDS": "42 52 62", "FORCE": "1"},
+      "inputs": [
+        {"path": "{LODO_TEST_ROOT_{fold}}", "kind": "directory", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"]}},
+        {"path": "{MODEL_ROOT}/{tag}/ALL_minus_{fold}/seed_{seed}/best_macro_f1.pth", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "seed": [42, 52, 62]}}
+      ],
+      "outputs": [{"path": "{OUT_ROOT}/lodo/{arm}/ALL_minus_{fold}/seed_{seed}/predictions.csv", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "seed": [42, 52, 62]}}],
+      "limitations": ["Original 13-weight release does not contain these sixty LODO checkpoints. Retained checkpoints or an extended model_root package avoid network retraining; compute present-class statistics separately."]
+    },
+    {
+      "id": "internal-native-{model}-{seed}",
+      "foreach": {
+        "model": {
+          "proposed": {"ckpt": "swin_base_colour_aug_cwce"},
+          "swin_bpaco": {"ckpt": "swin_base_bpaco"},
+          "resnet_bpaco_adamw": {"ckpt": "resnet50_bpaco_adamw"},
+          "resnet_bpaco_sgd": {"ckpt": "resnet50_bpaco_sgd"}
+        }, "seed": [42, 62, 82]
+      },
+      "kind": "inference",
+      "paper_items": ["Table 3 internal", "S4", "S17 internal seven-class sensitivity"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "eval/evaluate_internal.py", "--model-path", "{MODEL_DIR}/{ckpt}_seed{seed}.pth", "--trainer", "classifier", "--test-root", "{INTERNAL_TEST_ROOT}", "--output-dir", "{OUT_ROOT}/internal_native/{model}/seed_{seed}", "--device", "{DEVICE}"],
+      "inputs": [{"path": "{MODEL_DIR}/{ckpt}_seed{seed}.pth"}, {"path": "{INTERNAL_TEST_ROOT}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/internal_native/{model}/seed_{seed}/test_results.json"}, {"path": "{OUT_ROOT}/internal_native/{model}/seed_{seed}/confusion_matrix.csv"}, {"path": "{OUT_ROOT}/internal_native/{model}/seed_{seed}/predictions.csv"}],
+      "limitations": ["Exact original test membership is required with retained weights; trainer-native nine-class preprocessing is distinct from common seven-class hflip evaluation. Output directory must not already exist."]
+    },
+    {
+      "id": "internal-native-cnn-{model}-{seed}",
+      "foreach": {"model": ["resnet50", "vgg16_bn", "tf_efficientnet_b0"], "seed": [42, 43, 44]},
+      "kind": "inference",
+      "paper_items": ["Table 3 internal CNN", "S17 internal seven-class sensitivity"],
+      "environment": "cnn_env",
+      "argv": ["{PYTHON}", "-B", "eval/evaluate_internal.py", "--model-path", "{CNN_ROOT}/{model}/seed_{seed}/best_macro_f1.pth", "--trainer", "cnn", "--test-root", "{INTERNAL_TEST_ROOT}", "--output-dir", "{OUT_ROOT}/internal_native/{model}/seed_{seed}", "--device", "{DEVICE}"],
+      "inputs": [{"path": "{CNN_ROOT}/{model}/seed_{seed}/best_macro_f1.pth"}, {"path": "{INTERNAL_TEST_ROOT}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/internal_native/{model}/seed_{seed}/test_results.json"}, {"path": "{OUT_ROOT}/internal_native/{model}/seed_{seed}/confusion_matrix.csv"}],
+      "limitations": ["Use retained common-manifold CNN weights and the original test membership, not a newly shuffled split. Output directory must not already exist."]
+    },
+    {
+      "id": "internal-native-dinobloom-{seed}",
+      "foreach": {"seed": [42, 62, 82]},
+      "kind": "inference",
+      "paper_items": ["Table 3 internal fine-tuned DinoBloom"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "eval/evaluate_internal.py", "--model-path", "{DINO_ROOT}/seed_{seed}/best_macro_f1.pth", "--trainer", "dinobloom", "--test-root", "{INTERNAL_TEST_ROOT}", "--output-dir", "{OUT_ROOT}/internal_native/dinobloom_finetuned/seed_{seed}", "--device", "{DEVICE}"],
+      "inputs": [{"path": "{DINO_ROOT}/seed_{seed}/best_macro_f1.pth"}, {"path": "{INTERNAL_TEST_ROOT}", "kind": "directory"}],
+      "outputs": [{"path": "{OUT_ROOT}/internal_native/dinobloom_finetuned/seed_{seed}/test_results.json"}, {"path": "{OUT_ROOT}/internal_native/dinobloom_finetuned/seed_{seed}/confusion_matrix.csv"}],
+      "limitations": ["Requires the original test membership and the pinned DinoBloom configuration cache. Output directory must not already exist."]
+    },
+    {
+      "id": "dataset-corpus-and-pools",
+      "kind": "manual",
+      "paper_items": ["Table 1", "S1", "S2", "S3", "S15", "S17 data split provenance"],
+      "reason": "Dataset preparation is source/layout-dependent. Use data_prep/README.md: crop_training_sources.sh, harmonize_labels.py, split_dataset.py and corrected LODO builders. Exact historic membership needs a retained split/crop manifest. Do not score retained checkpoints on a newly randomized test split.",
+      "limitations": ["Class-count agreement alone does not establish the same training/test cells."]
+    },
+    {
+      "id": "detector-overlap",
+      "kind": "statistics",
+      "paper_items": ["S1 detector/classifier overlap"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/detector_overlap_audit.py", "--txl-root", "{TXLPBC_ROOT}", "--heldout", "PBC", "{REPO}/analysis/evidence/lodo/heldout_PBC_seed42.csv.gz", "{REPO}/analysis/evidence/lodo/heldout_PBC_seed52.csv.gz", "{REPO}/analysis/evidence/lodo/heldout_PBC_seed62.csv.gz", "--heldout", "Raabin-WBC", "{REPO}/analysis/evidence/lodo/heldout_RaabinWBC_seed42.csv.gz", "{REPO}/analysis/evidence/lodo/heldout_RaabinWBC_seed52.csv.gz", "{REPO}/analysis/evidence/lodo/heldout_RaabinWBC_seed62.csv.gz", "--out-dir", "{OUT_ROOT}/stats/overlap"],
+      "inputs": [{"path": "{TXLPBC_ROOT}/metadata_file.xlsx"}, {"path": "{TXLPBC_ROOT}/images", "kind": "directory"}, {"path": "{REPO}/analysis/evidence/lodo/heldout_{source}_seed{seed}.csv.gz", "foreach": {"source": ["PBC", "RaabinWBC"], "seed": [42, 52, 62]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/overlap/detector_overlap_audit.json"}],
+      "limitations": ["Uses public retained held-out IDs as the reference membership, not a newly rebuilt pool."]
+    },
+    {
+      "id": "fig1-illustration",
+      "kind": "manual",
+      "paper_items": ["Fig. 1"],
+      "reason": "Study-design layout is a hand-drawn illustration, not a numerical experiment. Its example panel can be regenerated with figures/make_fig_localization.py."
+    },
+    {
+      "id": "fig2-and-figS1",
+      "kind": "manual",
+      "paper_items": ["Fig. 2", "Fig. S1"],
+      "reason": "Use figures/make_fig_localization.py with selected original fields/crops, and figures/make_fig_domainshift.py with SOURCES_ROOT. Pinned source IDs are in figures/README.md and figures/fig2_source_mapping.csv. Requires licensed source images, not arbitrary substitutes."
+    },
+    {
+      "id": "hematologist-review",
+      "kind": "manual",
+      "paper_items": ["3.9", "S13"],
+      "reason": "Human review cannot be regenerated by model inference or training. Individual verdicts and benchmark IDs are restricted; no script or per-image physician evidence is released. Retain private source forms and aggregate checks separately."
+    },
+    {
+      "id": "bpaco-paired-statistics",
+      "kind": "statistics",
+      "paper_items": ["S7 paired BPaCo statistics", "3.4"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/paired_tests.py", "--model", "swin_base_bpaco", "{OUT_ROOT}/backbone_external/swin_base_bpaco/seed_42/predictions.csv", "{OUT_ROOT}/backbone_external/swin_base_bpaco/seed_62/predictions.csv", "{OUT_ROOT}/backbone_external/swin_base_bpaco/seed_82/predictions.csv", "--model", "resnet50_bpaco_adamw", "{OUT_ROOT}/backbone_external/resnet50_bpaco_adamw/seed_42/predictions.csv", "{OUT_ROOT}/backbone_external/resnet50_bpaco_adamw/seed_62/predictions.csv", "{OUT_ROOT}/backbone_external/resnet50_bpaco_adamw/seed_82/predictions.csv", "--model", "resnet50_bpaco_sgd", "{OUT_ROOT}/backbone_external/resnet50_bpaco_sgd/seed_42/predictions.csv", "{OUT_ROOT}/backbone_external/resnet50_bpaco_sgd/seed_62/predictions.csv", "{OUT_ROOT}/backbone_external/resnet50_bpaco_sgd/seed_82/predictions.csv", "--compare", "swin_base_bpaco", "resnet50_bpaco_adamw", "--compare", "swin_base_bpaco", "resnet50_bpaco_sgd", "--out-dir", "{OUT_ROOT}/stats/paired_bpaco"],
+      "inputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"model": ["swin_base_bpaco", "resnet50_bpaco_adamw", "resnet50_bpaco_sgd"], "seed": [42, 62, 82]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/paired_bpaco/paired_tests.json"}]
+    },
+    {
+      "id": "cnn-bootstrap-{model}",
+      "foreach": {"model": ["resnet50", "vgg16_bn", "tf_efficientnet_b0"]},
+      "kind": "statistics",
+      "paper_items": ["S9 CNN", "3.3 CNN intervals"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/bootstrap_ensemble_ci.py", "--model", "{model}", "{OUT_ROOT}/backbone_external/{model}/seed_42/predictions.csv", "{OUT_ROOT}/backbone_external/{model}/seed_43/predictions.csv", "{OUT_ROOT}/backbone_external/{model}/seed_44/predictions.csv", "--out-dir", "{OUT_ROOT}/stats/bootstrap_{model}"],
+      "inputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 43, 44]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/bootstrap_{model}/external_macrof1_bootstrap_ci.csv"}]
+    },
+    {
+      "id": "cnn-per-class-{model}",
+      "foreach": {"model": ["resnet50", "vgg16_bn", "tf_efficientnet_b0"]},
+      "kind": "statistics",
+      "paper_items": ["S10 CNN"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/seed_summary.py", "--run", "{model}", "{OUT_ROOT}/backbone_external/{model}/seed_42/predictions.csv", "{OUT_ROOT}/backbone_external/{model}/seed_43/predictions.csv", "{OUT_ROOT}/backbone_external/{model}/seed_44/predictions.csv", "--per-class", "--out-dir", "{OUT_ROOT}/stats/per_class_{model}"],
+      "inputs": [{"path": "{OUT_ROOT}/backbone_external/{model}/seed_{seed}/predictions.csv", "foreach": {"seed": [42, 43, 44]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/per_class_{model}/seed_summary.csv"}]
+    },
+    {
+      "id": "lodo-statistics-{arm}",
+      "foreach": {"arm": ["proposed", "mixup", "dinobloom_proposed", "dinobloom_bpaco"]},
+      "kind": "statistics",
+      "paper_items": ["Table 4", "Supplementary Note 1", "S14", "S16", "3.5"],
+      "environment": "journal_env",
+      "argv": ["{PYTHON}", "-B", "stats/lodo_present_class.py", "--fold", "AML-LMU", "{OUT_ROOT}/lodo/{arm}/ALL_minus_LMU/seed_42/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_LMU/seed_52/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_LMU/seed_62/predictions.csv", "--fold", "PBC", "{OUT_ROOT}/lodo/{arm}/ALL_minus_DIB/seed_42/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_DIB/seed_52/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_DIB/seed_62/predictions.csv", "--fold", "Raabin-WBC", "{OUT_ROOT}/lodo/{arm}/ALL_minus_Raabin/seed_42/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_Raabin/seed_52/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_Raabin/seed_62/predictions.csv", "--fold", "HRLS", "{OUT_ROOT}/lodo/{arm}/ALL_minus_HRLS/seed_42/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_HRLS/seed_52/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_HRLS/seed_62/predictions.csv", "--fold", "BMCMHF", "{OUT_ROOT}/lodo/{arm}/ALL_minus_BM/seed_42/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_BM/seed_52/predictions.csv", "{OUT_ROOT}/lodo/{arm}/ALL_minus_BM/seed_62/predictions.csv", "--seeds", "42", "52", "62", "--out-dir", "{OUT_ROOT}/stats/lodo_{arm}"],
+      "inputs": [{"path": "{OUT_ROOT}/lodo/{arm}/ALL_minus_{fold}/seed_{seed}/predictions.csv", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "seed": [42, 52, 62]}}],
+      "outputs": [{"path": "{OUT_ROOT}/stats/lodo_{arm}/lodo_present_class.json"}, {"path": "{OUT_ROOT}/stats/lodo_{arm}/lodo_per_class.csv"}]
+    },
+    {
+      "id": "train-mixup-crt",
+      "kind": "training",
+      "paper_items": ["S8"],
+      "environment": "journal_env",
+      "argv": ["bash", "train/scripts/run_swin_mixup_bpaco_crt.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82"},
+      "inputs": [{"path": "{CORPUS_ROOT}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}, {"path": "{REPO}/train/third_party/bpaco_losses.py"}],
+      "outputs": [{"path": "{OUT_ROOT}/swin_base_mixup_bpaco_crt/seed_{seed}/crt_test_results.json", "foreach": {"seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "train-policy-sweep",
+      "kind": "training",
+      "paper_items": ["S17 augmentation selection"],
+      "environment": "journal_env",
+      "argv": ["bash", "train/scripts/run_aug_policy_sweep.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82", "POLICIES": "conservative stain_only geometry_only blur_noise stain_blur_noise"},
+      "inputs": [{"path": "{CORPUS_ROOT}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}],
+      "outputs": [{"path": "{OUT_ROOT}/swin_base_aug_{policy}/seed_{seed}/test_results.json", "foreach": {"policy": ["conservative", "stain_only", "geometry_only", "blur_noise", "stain_blur_noise"], "seed": [42, 62, 82]}}]
+    },
+    {
+      "id": "train-{runner}",
+      "foreach": {"runner": {
+        "proposed": {"tag": "swin_base_color_aug_cwce"},
+        "swin_bpaco_adamw": {"tag": "swin_base_bpaco"},
+        "resnet50_bpaco_adamw": {"tag": "resnet50_bpaco_adamw"},
+        "resnet50_bpaco_sgd": {"tag": "resnet50_bpaco_sgd"},
+        "dinobloom_finetune": {"tag": "dinobloom_b_color_aug_cwce"},
+        "swin_cwce_default_aug": {"tag": "swin_base_cwce_default_aug"},
+        "resnet50_cwce_default_aug": {"tag": "resnet50_cwce_default_aug"},
+        "resnet50_color_aug_adamw": {"tag": "resnet50_color_aug_cwce_adamw"},
+        "resnet50_color_aug_sgd": {"tag": "resnet50_color_aug_cwce_sgd"}
+      }},
+      "kind": "training",
+      "paper_items": ["Table 3", "S5", "S7", "S8", "S17 training configurations"],
+      "environment": "journal_env",
+      "argv": ["bash", "train/scripts/run_{runner}.sh"],
+      "environment_overrides": {"SEEDS": "42 62 82"},
+      "inputs": [{"path": "{CORPUS_ROOT}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}],
+      "outputs": [{"path": "{OUT_ROOT}/{tag}/seed_{seed}/test_results.json", "foreach": {"seed": [42, 62, 82]}}],
+      "limitations": ["Network training may take days. BPaCo variants require the pinned upstream loss and CUDA; download is a separate licensed dependency step. Checkpoints and training logs, not mere exit status, must be reviewed."]
+    },
+    {
+      "id": "train-cnn-baselines",
+      "kind": "training",
+      "paper_items": ["Table 3 CNN", "S5", "S9", "S10"],
+      "environment": "cnn_env",
+      "argv": ["bash", "train/scripts/run_cnn_baselines.sh"],
+      "environment_overrides": {"SEEDS": "42 43 44", "MODELS": "vgg16_bn tf_efficientnet_b0 resnet50"},
+      "inputs": [{"path": "{CORPUS_ROOT}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}],
+      "outputs": [{"path": "{OUT_ROOT}/cnn_cwce/{model}/seed_{seed}/test_results.json", "foreach": {"model": ["vgg16_bn", "tf_efficientnet_b0", "resnet50"], "seed": [42, 43, 44]}}]
+    },
+    {
+      "id": "train-detector-{variant}",
+      "foreach": {"variant": {"wbc_only": {"tag": "wbc_only"}, "three_class": {"tag": "as_released"}}},
+      "kind": "training",
+      "paper_items": ["detector Methods validation", "S1 three-class detector"],
+      "environment": "detector_env",
+      "argv": ["bash", "train/scripts/run_detector.sh", "{variant}"],
+      "inputs": [{"path": "{TXLPBC_DATA_YAML}"}],
+      "outputs": [{"path": "{OUT_ROOT}/detector/yolo11m_txlpbc_{tag}_s512/weights/best.pt"}, {"path": "{OUT_ROOT}/detector/yolo11m_txlpbc_{tag}_s512/results.csv"}],
+      "limitations": ["Use Ultralytics 8.3.170 for training. Detector validation in journal_env is a distinct operation; see docs/PAPER_MAP.md note 1."]
+    },
+    {
+      "id": "train-lodo-{arm}",
+      "foreach": {"arm": {
+        "proposed": {"tag": "lodo_swin_base_color_aug_cwce", "stack": "journal_env"},
+        "mixup_arm": {"tag": "lodo_swin_base_mixup_cutmix_cwce", "stack": "cnn_env"}
+      }},
+      "kind": "training",
+      "paper_items": ["Table 4", "Supplementary Note 1", "S14"],
+      "environment": "{stack}",
+      "argv": ["bash", "train/scripts/run_lodo_{arm}.sh"],
+      "environment_overrides": {"SEEDS": "42 52 62"},
+      "inputs": [{"path": "{LODO_ROOT_{fold}}/{split}", "kind": "directory", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "split": ["train", "val", "test"]}}],
+      "outputs": [{"path": "{OUT_ROOT}/{tag}/ALL_minus_{fold}/seed_{seed}/test_results.json", "foreach": {"fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "seed": [42, 52, 62]}}],
+      "limitations": ["Requires all corrected LODO split roots from train/README.md."]
+    },
+    {
+      "id": "train-dinobloom-lodo-{config}-{fold}-{seed}",
+      "foreach": {"config": ["proposed", "bpaco"], "fold": ["LMU", "DIB", "Raabin", "HRLS", "BM"], "seed": [42, 52, 62]},
+      "kind": "training",
+      "paper_items": ["S16"],
+      "environment": "journal_env",
+      "argv": ["bash", "train/scripts/run_lodo_dinobloom.sh", "{config}", "{fold}", "{seed}"],
+      "inputs": [{"path": "{LODO_ROOT_{fold}}/{split}", "kind": "directory", "foreach": {"split": ["train", "val", "test"]}}],
+      "outputs": [{"path": "{OUT_ROOT}/lodo_dinobloom_b_{config}/ALL_minus_{fold}/seed_{seed}/test_results.json"}],
+      "limitations": ["Requires the corresponding corrected LODO split root. bpaco requires pinned upstream BPaCo loss and CUDA. The runner validates the split."]
+    }
+  ]
+}

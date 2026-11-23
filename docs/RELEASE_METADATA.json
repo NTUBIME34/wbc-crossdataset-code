@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "release_state": "draft",
+  "release_version": null,
+  "code": {
+    "public_repository_url": null,
+    "release_url": null,
+    "archive_doi": null
+  },
+  "weights": {
+    "record_doi": null,
+    "record_url": null,
+    "download_url": null,
+    "core_checkpoint_count": 13
+  },
+  "paper": {
+    "status": "unpublished_manuscript",
+    "title": "A Two-Stage YOLO-Swin Transformer Pipeline for Cross-Dataset White Blood Cell Classification",
+    "doi": null,
+    "url": null
+  },
+  "notes": [
+    "Null means not publicly assigned or not publicly verified; it is not a download link.",
+    "The named README records the configured repository origin, reserved weights DOI and manuscript citation.",
+    "A reserved DOI must not be substituted for a published record or a file download URL.",
+    "The core checkpoint count does not include additional study-model bundles.",
+    "Publication metadata completeness is separate from execution and numerical-reproduction coverage."
+  ]
+}

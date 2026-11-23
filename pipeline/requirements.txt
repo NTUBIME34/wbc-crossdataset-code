@@ -1,0 +1,25 @@
+# Pip pins for the inference pipeline (YOLO11 detection + Swin-B classification).
+# The paper's software stack for the Swin-B models, full-pipeline detector inference and
+# all WBCBench2026 evaluation (Supplementary Section S5): Python 3.10.20, PyTorch 2.5.1
+# (CUDA 12.1), torchvision 0.20.1, timm 1.0.27, Ultralytics 8.4.82, scikit-learn 1.7.2,
+# NumPy 2.2.6. The other pins are the versions in that environment; for an exact
+# reproduction use the conda file environment/journal_env.yml.
+# CPU-only machine or another CUDA version: change the index URL and the +cu121 suffixes,
+# e.g. https://download.pytorch.org/whl/cpu with torch==2.5.1+cpu and torchvision==0.20.1+cpu.
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+timm==1.0.27
+ultralytics==8.4.82
+ultralytics-thop==2.0.20
+
+numpy==2.2.6
+opencv-python==4.13.0.92
+pillow==12.2.0
+scikit-learn==1.7.2
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.10.9
+tqdm==4.68.3
+PyYAML==6.0.3
