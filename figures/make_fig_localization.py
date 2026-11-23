@@ -188,8 +188,8 @@ def main() -> None:
         axc.set_xticks([]); axc.set_yticks([])
         for s in axc.spines.values(): s.set_color(C_LOC); s.set_linewidth(1.1)
 
-    axes[0, 0].set_ylabel("Field\n(input)",  fontsize=14, weight="bold", color=INK)
-    axes[1, 0].set_ylabel("YOLO11 crop\n(224$\\times$224 input)", fontsize=14, weight="bold", color=C_LOC)
+    axes[0, 0].set_ylabel("Uncropped\nimage",  fontsize=14, weight="bold", color=INK)
+    axes[1, 0].set_ylabel("Detection-and-\ncropping output", fontsize=14, weight="bold", color=C_LOC)
     fig.subplots_adjust(left=0.075, right=0.996, top=0.885, bottom=0.010, wspace=0.05, hspace=0.10)
     fig.savefig(out/"fig_localization_grid.png", dpi=400, facecolor="white")
     print(f"saved {out / 'fig_localization_grid.png'}")
